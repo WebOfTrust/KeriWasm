@@ -5,6 +5,7 @@ hio.core.doing Module
 import time
 import types
 import inspect
+import asyncio
 from inspect import isgeneratorfunction
 from collections import deque, namedtuple
 
@@ -100,6 +101,11 @@ class Doist(tyming.Tymist):
         self.timer = timing.MonoTimer(duration = self.tock)
 
 
+    def __call__(self, *pa, **kwa):
+        """Make Doist instance callable."""
+        self.do(*pa, **kwa)
+
+
     def do(self, doers=None, limit=None, tyme=None):
         """
         Readies deeds deque from .doers or doers if any and then iteratively
@@ -178,6 +184,66 @@ class Doist(tyming.Tymist):
 
         finally: # finally clause always runs regardless of exception or not.
             self.exit()  # force close remaining deeds throws GeneratorExit
+
+
+    async def ado(self, doers=None, limit=None, tyme=None):
+        """
+        Asyncio-aware version of .do().
+
+        This mirrors the existing scheduler semantics but yields with
+        ``asyncio.sleep`` instead of blocking ``time.sleep`` so loop-backed
+        tasks (for example IndexedDB operations in Pyodide) can progress.
+        """
+        self.done = False
+        if doers is not None:
+            self.doers = list(doers)
+            self.deeds = deque()
+
+        if limit is not None:
+            self.limit = abs(float(limit))
+
+        if tyme is not None:
+            self.tyme = tyme
+
+        try:
+            self.enter()
+
+            tymer = tyming.Tymer(tymth=self.tymen(), duration=self.limit)
+            loop = asyncio.get_event_loop()
+            start = loop.time()
+
+            while True:
+                try:
+                    self.recur()
+
+                    if self.real:
+                        latest = loop.time()
+                        remain = start + self.tock - latest
+                        await asyncio.sleep(max(0.0, remain))
+                        start = loop.time()
+                    else:
+                        raise timing.TimerError(
+                            f"Invalid real={self.real} in .ado asyncio must use real=True"
+                        )
+
+                    if not self.deeds:
+                        self.done = True
+                        break
+
+                    if self.limit and tymer.expired:
+                        break
+
+                except KeyboardInterrupt:
+                    break
+
+                except SystemExit:
+                    raise
+
+                except Exception:
+                    raise
+
+        finally:
+            self.exit()
 
 
     def enter(self, doers=None):
