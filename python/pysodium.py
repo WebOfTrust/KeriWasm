@@ -7,7 +7,7 @@ libsodium wheel).  This shim re-exports the public API so that
 
 Only the subset used by keripy is forwarded. Add more as needed.
 """
-from pychloride import (  # noqa: F401 — re-export
+from pychloride import (  # noqa: F401 — re-export # type: ignore
     crypto_sign_keypair,
     crypto_sign_detached,
     crypto_sign_verify_detached,
